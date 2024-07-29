@@ -1,0 +1,139 @@
+= quarkus-picocli-subcommands
+
+This repository shows a bug with `quarkus-picocli`, subcommands and `..., helpCommand = true, ...`.
+
+== Build and run application
+To build the application, run
+
+.Build application
+[source,bash]
+----
+$ ./mvnw clean package
+----
+
+To run the application, run
+
+.Run application
+[source,bash]
+----
+$ java -jar target/quarkus-app/quarkus-run.jar
+__  ____  __  _____   ___  __ ____  ______
+ --/ __ \/ / / / _ | / _ \/ //_/ / / / __/
+ -/ /_/ / /_/ / __ |/ , _/ ,< / /_/ /\ \
+--\___\_\____/_/ |_/_/|_/_/|_|\____/___/
+2024-07-29 13:08:12,126 INFO  [io.quarkus] (main) quarkus-picocli-subcommands 999-SNAPSHOT on JVM (powered by Quarkus 3.8.5) started in 0.347s.
+2024-07-29 13:08:12,134 INFO  [io.quarkus] (main) Profile prod activated.
+2024-07-29 13:08:12,134 INFO  [io.quarkus] (main) Installed features: [cdi, picocli, smallrye-context-propagation]
+2024-07-29 13:08:12,221 INFO  [de.tur.qua.pic.sub.FooCommand] (main) Hello from foo!
+2024-07-29 13:08:12,229 INFO  [io.quarkus] (main) quarkus-picocli-subcommands stopped in 0.007s
+
+----
+
+== Buggy behaviour
+If we look at the `--help`, we see the subcommand `bar`:
+
+.Show help page
+[source,bash]
+----
+$ java -jar target/quarkus-app/quarkus-run.jar --help
+__  ____  __  _____   ___  __ ____  ______
+ --/ __ \/ / / / _ | / _ \/ //_/ / / / __/
+ -/ /_/ / /_/ / __ |/ , _/ ,< / /_/ /\ \
+--\___\_\____/_/ |_/_/|_/_/|_|\____/___/
+2024-07-29 13:09:12,038 INFO  [io.quarkus] (main) quarkus-picocli-subcommands 999-SNAPSHOT on JVM (powered by Quarkus 3.8.5) started in 0.399s.
+2024-07-29 13:09:12,056 INFO  [io.quarkus] (main) Profile prod activated.
+2024-07-29 13:09:12,057 INFO  [io.quarkus] (main) Installed features: [cdi, picocli, smallrye-context-propagation]
+Usage: <main class> [-hV] [COMMAND]
+  -h, --help      Show this help message and exit.
+  -V, --version   Print version information and exit.
+Commands:
+  bar
+2024-07-29 13:09:12,172 INFO  [io.quarkus] (main) quarkus-picocli-subcommands stopped in 0.008s
+----
+
+But if we try to run the `bar` subcommand, it is not executed:
+
+.Run `bar` subcommand
+[source,bash]
+----
+$ java -jar target/quarkus-app/quarkus-run.jar bar --name=baz
+__  ____  __  _____   ___  __ ____  ______
+ --/ __ \/ / / / _ | / _ \/ //_/ / / / __/
+ -/ /_/ / /_/ / __ |/ , _/ ,< / /_/ /\ \
+--\___\_\____/_/ |_/_/|_/_/|_|\____/___/
+2024-07-29 13:10:10,317 INFO  [io.quarkus] (main) quarkus-picocli-subcommands 999-SNAPSHOT on JVM (powered by Quarkus 3.8.5) started in 0.325s.
+2024-07-29 13:10:10,323 INFO  [io.quarkus] (main) Profile prod activated.
+2024-07-29 13:10:10,324 INFO  [io.quarkus] (main) Installed features: [cdi, picocli, smallrye-context-propagation]
+2024-07-29 13:10:10,401 INFO  [de.tur.qua.pic.sub.FooCommand] (main) Hello from foo!
+2024-07-29 13:10:10,410 INFO  [io.quarkus] (main) quarkus-picocli-subcommands stopped in 0.008s
+----
+
+If we remove the `..., helpCommand = true` from link:src/main/java/de/turing85/quarkus/picocli/subcommands/FooCommand.java[`FooCommand.java`]
+
+.Remove `helpCommand = true`
+[source,patch]
+----
+Subject: [PATCH] Remove helpCommand = true
+---
+Index: src/main/java/de/turing85/quarkus/picocli/subcommands/FooCommand.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/src/main/java/de/turing85/quarkus/picocli/subcommands/FooCommand.java b/src/main/java/de/turing85/quarkus/picocli/subcommands/FooCommand.java
+--- a/src/main/java/de/turing85/quarkus/picocli/subcommands/FooCommand.java	(revision c2fd475897d8ab82d9367fbc7ba297aa5ce5a5e5)
++++ b/src/main/java/de/turing85/quarkus/picocli/subcommands/FooCommand.java	(date 1722251603976)
+@@ -8,8 +8,7 @@
+ import picocli.CommandLine;
+
+ @TopCommand
+-@CommandLine.Command(mixinStandardHelpOptions = true, helpCommand = true,
+-    subcommands = BarCommand.class)
++@CommandLine.Command(mixinStandardHelpOptions = true, subcommands = BarCommand.class)
+ @ApplicationScoped
+ @RequiredArgsConstructor
+ @Slf4j
+
+----
+
+we can build and re-run the program, and it works as expected:
+
+.Rebulid and run `bar` subcommand
+[source,bash]
+----
+$ ./mvnw clean package && java -jar target/quarkus-app/quarkus-run.jar bar --name=baz
+...
+__  ____  __  _____   ___  __ ____  ______
+ --/ __ \/ / / / _ | / _ \/ //_/ / / / __/
+ -/ /_/ / /_/ / __ |/ , _/ ,< / /_/ /\ \
+--\___\_\____/_/ |_/_/|_/_/|_|\____/___/
+2024-07-29 13:15:38,688 INFO  [io.quarkus] (main) quarkus-picocli-subcommands 999-SNAPSHOT on JVM (powered by Quarkus 3.8.5) started in 0.384s.
+2024-07-29 13:15:38,698 INFO  [io.quarkus] (main) Profile prod activated.
+2024-07-29 13:15:38,698 INFO  [io.quarkus] (main) Installed features: [cdi, picocli, smallrye-context-propagation]
+2024-07-29 13:15:38,790 INFO  [de.tur.qua.pic.sub.BarCommand] (main) Hello from Bar to baz!
+2024-07-29 13:15:38,796 INFO  [io.quarkus] (main) quarkus-picocli-subcommands stopped in 0.005s
+----
+
+== Contributors ✨
+
+Thanks goes to these wonderful people (https://allcontributors.org/docs/en/emoji-key[emoji key]):
+
+++++
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<table>
+  <tbody>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://turing85.github.io"><img src="https://avatars.githubusercontent.com/u/32584495?v=4?s=100" width="100px;" alt="Marco Bungart"/><br /><sub><b>Marco Bungart</b></sub></a><br /><a href="#code-turing85" title="Code">💻</a> <a href="#maintenance-turing85" title="Maintenance">🚧</a> <a href="#doc-turing85" title="Documentation">📖</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+++++
+
+This project follows the https://github.com/all-contributors/all-contributors[all-contributors] specification. Contributions of any kind welcome!
